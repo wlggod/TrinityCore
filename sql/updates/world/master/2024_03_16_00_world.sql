@@ -10,7 +10,7 @@ UPDATE `creature_template_difficulty` SET `LootID`=17187 WHERE (`DifficultyID`=0
 UPDATE `creature_template_difficulty` SET `LootID`=54130 WHERE (`DifficultyID`=0 AND `Entry` = 54130); -- Items of Utmost Importance
 
 -- Creature_loot_template									
-INSERT INTO `creature_text` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
+INSERT INTO `Creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (54130, 72071, 	0, 	75, 	1, 	1, 	0, 	1, 	1, 	'');-- Items of Utmost Importance
 
 -- waypoint_path									
