@@ -1435,7 +1435,7 @@ TC_API_EXPORT EnumText EnumUtils<SpellAttr9>::ToString(SpellAttr9 value)
 {
     switch (value)
     {
-        case SPELL_ATTR9_UNK0: return { "SPELL_ATTR9_UNK0", "Unknown attribute 0@Attr9", "" };
+        case SPELL_ATTR9_FORCE_DEST_LOCATION: return { "SPELL_ATTR9_FORCE_DEST_LOCATION", "Force Dest Location", "Ignores collision with terrain (unsure if it also ignores terrain height and can go under map)" };
         case SPELL_ATTR9_UNK1: return { "SPELL_ATTR9_UNK1", "Unknown attribute 1@Attr9", "" };
         case SPELL_ATTR9_RESTRICTED_FLIGHT_AREA: return { "SPELL_ATTR9_RESTRICTED_FLIGHT_AREA", "Only When Illegally Mounted", "" };
         case SPELL_ATTR9_UNK3: return { "SPELL_ATTR9_UNK3", "Unknown attribute 3@Attr9", "" };
@@ -1479,7 +1479,7 @@ TC_API_EXPORT SpellAttr9 EnumUtils<SpellAttr9>::FromIndex(size_t index)
 {
     switch (index)
     {
-        case 0: return SPELL_ATTR9_UNK0;
+        case 0: return SPELL_ATTR9_FORCE_DEST_LOCATION;
         case 1: return SPELL_ATTR9_UNK1;
         case 2: return SPELL_ATTR9_RESTRICTED_FLIGHT_AREA;
         case 3: return SPELL_ATTR9_UNK3;
@@ -1520,7 +1520,7 @@ TC_API_EXPORT size_t EnumUtils<SpellAttr9>::ToIndex(SpellAttr9 value)
 {
     switch (value)
     {
-        case SPELL_ATTR9_UNK0: return 0;
+        case SPELL_ATTR9_FORCE_DEST_LOCATION: return 0;
         case SPELL_ATTR9_UNK1: return 1;
         case SPELL_ATTR9_RESTRICTED_FLIGHT_AREA: return 2;
         case SPELL_ATTR9_UNK3: return 3;
@@ -1978,7 +1978,7 @@ TC_API_EXPORT EnumText EnumUtils<SpellAttr13>::ToString(SpellAttr13 value)
         case SPELL_ATTR13_UNK24: return { "SPELL_ATTR13_UNK24", "Unknown attribute 24@Attr13", "" };
         case SPELL_ATTR13_UNK25: return { "SPELL_ATTR13_UNK25", "Unknown attribute 25@Attr13", "" };
         case SPELL_ATTR13_UNK26: return { "SPELL_ATTR13_UNK26", "Unknown attribute 26@Attr13", "" };
-        case SPELL_ATTR13_UNK27: return { "SPELL_ATTR13_UNK27", "Unknown attribute 27@Attr13", "" };
+        case SPELL_ATTR13_DO_NOT_ALLOW_DISABLE_MOVEMENT_INTERRUPT: return { "SPELL_ATTR13_DO_NOT_ALLOW_DISABLE_MOVEMENT_INTERRUPT", "Do Not Allow \042Disable Movement Interrupt\042", "" };
         case SPELL_ATTR13_UNK28: return { "SPELL_ATTR13_UNK28", "Unknown attribute 28@Attr13", "" };
         case SPELL_ATTR13_UNK29: return { "SPELL_ATTR13_UNK29", "Unknown attribute 29@Attr13", "" };
         case SPELL_ATTR13_UNK30: return { "SPELL_ATTR13_UNK30", "Unknown attribute 30@Attr13", "" };
@@ -2022,7 +2022,7 @@ TC_API_EXPORT SpellAttr13 EnumUtils<SpellAttr13>::FromIndex(size_t index)
         case 24: return SPELL_ATTR13_UNK24;
         case 25: return SPELL_ATTR13_UNK25;
         case 26: return SPELL_ATTR13_UNK26;
-        case 27: return SPELL_ATTR13_UNK27;
+        case 27: return SPELL_ATTR13_DO_NOT_ALLOW_DISABLE_MOVEMENT_INTERRUPT;
         case 28: return SPELL_ATTR13_UNK28;
         case 29: return SPELL_ATTR13_UNK29;
         case 30: return SPELL_ATTR13_UNK30;
@@ -2063,7 +2063,7 @@ TC_API_EXPORT size_t EnumUtils<SpellAttr13>::ToIndex(SpellAttr13 value)
         case SPELL_ATTR13_UNK24: return 24;
         case SPELL_ATTR13_UNK25: return 25;
         case SPELL_ATTR13_UNK26: return 26;
-        case SPELL_ATTR13_UNK27: return 27;
+        case SPELL_ATTR13_DO_NOT_ALLOW_DISABLE_MOVEMENT_INTERRUPT: return 27;
         case SPELL_ATTR13_UNK28: return 28;
         case SPELL_ATTR13_UNK29: return 29;
         case SPELL_ATTR13_UNK30: return 30;
