@@ -143,6 +143,7 @@ enum class SpellAuraInterruptFlags2 : uint32
     ChallengeModeStart                          = 0x00400000, // Implemented in Unit::AtStartOfEncounter
     StartOfEncounter                            = 0x00800000, // Implemented in Unit::AtStartOfEncounter
     EndOfEncounter                              = 0x01000000, // Implemented in Unit::AtEndOfEncounter
+    ReleaseEmpower                              = 0x02000000, // Implemented in Spell::update
 };
 
 DEFINE_ENUM_FLAG(SpellAuraInterruptFlags2);
@@ -193,7 +194,7 @@ enum class SpellModOp : uint8
 
 #define MAX_SPELLMOD 40
 
-enum SpellValueMod : uint8
+enum SpellValueMod : int32
 {
     SPELLVALUE_BASE_POINT0,
     SPELLVALUE_BASE_POINT1,
@@ -227,15 +228,23 @@ enum SpellValueMod : uint8
     SPELLVALUE_BASE_POINT29,
     SPELLVALUE_BASE_POINT30,
     SPELLVALUE_BASE_POINT31,
+
     SPELLVALUE_BASE_POINT_END,
-    SPELLVALUE_RADIUS_MOD,
-    SPELLVALUE_MAX_TARGETS,
+
+    SPELLVALUE_MAX_TARGETS = SPELLVALUE_BASE_POINT_END,
     SPELLVALUE_AURA_STACK,
-    SPELLVALUE_CRIT_CHANCE,
-    SPELLVALUE_DURATION_PCT,
     SPELLVALUE_DURATION,
     SPELLVALUE_PARENT_SPELL_TARGET_COUNT,
-    SPELLVALUE_PARENT_SPELL_TARGET_INDEX
+    SPELLVALUE_PARENT_SPELL_TARGET_INDEX,
+
+    SPELLVALUE_INT_END
+};
+
+enum SpellValueModFloat : int32
+{
+    SPELLVALUE_RADIUS_MOD   = uint8(SPELLVALUE_INT_END),
+    SPELLVALUE_CRIT_CHANCE,
+    SPELLVALUE_DURATION_PCT,
 };
 
 enum SpellFacingFlags
@@ -252,7 +261,7 @@ enum TriggerCastFlags : uint32
     TRIGGERED_IGNORE_CAST_ITEM                      = 0x00000008,   //!< Will not take away cast item or update related achievement criteria
     TRIGGERED_IGNORE_AURA_SCALING                   = 0x00000010,   //!< Will ignore aura scaling
     TRIGGERED_IGNORE_CAST_IN_PROGRESS               = 0x00000020,   //!< Will not check if a current cast is in progress
-    // reuse                                        = 0x00000040,
+    TRIGGERED_IGNORE_CAST_TIME                      = 0x00000040,   //!< Will always be instantly cast
     TRIGGERED_CAST_DIRECTLY                         = 0x00000080,   //!< In Spell::prepare, will be cast directly without setting containers for executed spell
     // reuse                                        = 0x00000100,
     TRIGGERED_IGNORE_SET_FACING                     = 0x00000200,   //!< Will not adjust facing to target (if any)
@@ -447,16 +456,46 @@ struct TC_GAME_API CastSpellTargetArg
     Optional<SpellCastTargets> Targets; // empty optional used to signal error state
 };
 
-struct TC_GAME_API CastSpellExtraArgs
+struct CastSpellExtraArgsInit
+{
+    TriggerCastFlags TriggerFlags = TRIGGERED_NONE;
+    Difficulty CastDifficulty = Difficulty(0);
+    Item* CastItem = nullptr;
+    Spell const* TriggeringSpell = nullptr;
+    AuraEffect const* TriggeringAura = nullptr;
+    ObjectGuid OriginalCaster = ObjectGuid::Empty;
+    ObjectGuid OriginalCastId = ObjectGuid::Empty;
+    Optional<int32> OriginalCastItemLevel;
+    struct SpellValueOverride
+    {
+        SpellValueOverride(SpellValueMod mod, int32 val) : Type(mod) { Value.I = val; }
+        SpellValueOverride(SpellValueModFloat mod, float val) : Type(mod) { Value.F = val; }
+
+        int32 Type;
+        union
+        {
+            float F;
+            int32 I;
+        } Value;
+    };
+    std::vector<SpellValueOverride> SpellValueOverrides;
+    std::any CustomArg;
+    Optional<Scripting::v2::ActionResultSetter<SpellCastResult>> ScriptResult;
+    bool ScriptWaitsForSpellHit = false;
+};
+
+struct TC_GAME_API CastSpellExtraArgs : public CastSpellExtraArgsInit
 {
     CastSpellExtraArgs();
-    CastSpellExtraArgs(bool triggered) : TriggerFlags(triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE) {}
-    CastSpellExtraArgs(TriggerCastFlags trigger) : TriggerFlags(trigger) {}
-    CastSpellExtraArgs(Item* item) : TriggerFlags(TRIGGERED_FULL_MASK), CastItem(item) {}
-    CastSpellExtraArgs(Spell const* triggeringSpell) : TriggerFlags(TRIGGERED_FULL_MASK) { SetTriggeringSpell(triggeringSpell); }
-    CastSpellExtraArgs(AuraEffect const* eff) : TriggerFlags(TRIGGERED_FULL_MASK) { SetTriggeringAura(eff); }
-    CastSpellExtraArgs(Difficulty castDifficulty) : CastDifficulty(castDifficulty) {}
-    CastSpellExtraArgs(SpellValueMod mod, int32 val) { SpellValueOverrides.AddMod(mod, val); }
+    CastSpellExtraArgs(bool triggered) { TriggerFlags = triggered ? TRIGGERED_FULL_MASK : TRIGGERED_NONE; }
+    CastSpellExtraArgs(TriggerCastFlags trigger) { TriggerFlags = trigger; }
+    CastSpellExtraArgs(Item* item) { TriggerFlags = TRIGGERED_FULL_MASK; CastItem = item; }
+    CastSpellExtraArgs(Spell const* triggeringSpell) { TriggerFlags = TRIGGERED_FULL_MASK; SetTriggeringSpell(triggeringSpell); }
+    CastSpellExtraArgs(AuraEffect const* eff) { TriggerFlags = TRIGGERED_FULL_MASK; SetTriggeringAura(eff); }
+    CastSpellExtraArgs(Difficulty castDifficulty) { CastDifficulty = castDifficulty; }
+    CastSpellExtraArgs(SpellValueMod mod, int32 val) { SpellValueOverrides.emplace_back(mod, val); }
+    CastSpellExtraArgs(SpellValueModFloat mod, float val) { SpellValueOverrides.emplace_back(mod, val); }
+    CastSpellExtraArgs(CastSpellExtraArgsInit&& init) : CastSpellExtraArgsInit(std::move(init)) { SetTriggeringSpell(TriggeringSpell); }
 
     CastSpellExtraArgs(CastSpellExtraArgs const& other);
     CastSpellExtraArgs(CastSpellExtraArgs&& other) noexcept;
@@ -469,41 +508,16 @@ struct TC_GAME_API CastSpellExtraArgs
     CastSpellExtraArgs& SetTriggerFlags(TriggerCastFlags flag) { TriggerFlags = flag; return *this; }
     CastSpellExtraArgs& SetCastItem(Item* item) { CastItem = item; return *this; }
     CastSpellExtraArgs& SetTriggeringSpell(Spell const* triggeringSpell);
-    CastSpellExtraArgs& SetTriggeringAura(AuraEffect const* triggeringAura);
+    CastSpellExtraArgs& SetTriggeringAura(AuraEffect const* triggeringAura) { TriggeringAura = triggeringAura; return *this; }
     CastSpellExtraArgs& SetOriginalCaster(ObjectGuid const& guid) { OriginalCaster = guid; return *this; }
     CastSpellExtraArgs& SetCastDifficulty(Difficulty castDifficulty) { CastDifficulty = castDifficulty; return *this; }
     CastSpellExtraArgs& SetOriginalCastId(ObjectGuid const& castId) { OriginalCastId = castId; return *this; }
-    CastSpellExtraArgs& AddSpellMod(SpellValueMod mod, int32 val) { SpellValueOverrides.AddMod(mod, val); return *this; }
+    CastSpellExtraArgs& AddSpellMod(SpellValueMod mod, int32 val) { SpellValueOverrides.emplace_back(mod, val); return *this; }
+    CastSpellExtraArgs& AddSpellMod(SpellValueModFloat mod, float val) { SpellValueOverrides.emplace_back(mod, val); return *this; }
     CastSpellExtraArgs& AddSpellBP0(int32 val) { return AddSpellMod(SPELLVALUE_BASE_POINT0, val); } // because i don't want to type SPELLVALUE_BASE_POINT0 300 times
     CastSpellExtraArgs& SetCustomArg(std::any customArg) { CustomArg = std::move(customArg); return *this; }
     CastSpellExtraArgs& SetScriptResult(Scripting::v2::ActionResultSetter<SpellCastResult> scriptResult) { ScriptResult.emplace(std::move(scriptResult)); return *this; }
     CastSpellExtraArgs& SetScriptWaitsForSpellHit(bool scriptWaitsForSpellHit) { ScriptWaitsForSpellHit = scriptWaitsForSpellHit; return *this; }
-
-    TriggerCastFlags TriggerFlags = TRIGGERED_NONE;
-    Item* CastItem = nullptr;
-    Spell const* TriggeringSpell = nullptr;
-    AuraEffect const* TriggeringAura = nullptr;
-    ObjectGuid OriginalCaster = ObjectGuid::Empty;
-    Difficulty CastDifficulty = Difficulty(0);
-    ObjectGuid OriginalCastId = ObjectGuid::Empty;
-    Optional<int32> OriginalCastItemLevel;
-    struct
-    {
-        friend struct CastSpellExtraArgs;
-        friend class WorldObject;
-
-    private:
-        void AddMod(SpellValueMod mod, int32 val) { data.push_back({ mod, val }); }
-
-        auto begin() const { return data.cbegin(); }
-        auto end() const { return data.cend(); }
-
-        std::vector<std::pair<SpellValueMod, int32>> data;
-    } SpellValueOverrides;
-    std::any CustomArg;
-
-    Optional<Scripting::v2::ActionResultSetter<SpellCastResult>> ScriptResult;
-    bool ScriptWaitsForSpellHit = false;
 };
 
 struct SpellCastVisual
