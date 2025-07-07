@@ -18,13 +18,12 @@
 #include "CriteriaHandler.h"
 #include "ArenaTeamMgr.h"
 #include "AzeriteItem.h"
-#include "Battleground.h"
 #include "BattlePetMgr.h"
+#include "Battleground.h"
 #include "CollectionMgr.h"
-#include "Containers.h"
 #include "Creature.h"
-#include "DatabaseEnv.h"
 #include "DB2Stores.h"
+#include "DatabaseEnv.h"
 #include "DisableMgr.h"
 #include "GameEventMgr.h"
 #include "GameTime.h"
@@ -37,6 +36,7 @@
 #include "Log.h"
 #include "Map.h"
 #include "MapManager.h"
+#include "MapUtils.h"
 #include "ObjectMgr.h"
 #include "PhasingHandler.h"
 #include "Player.h"
@@ -607,8 +607,10 @@ void CriteriaHandler::UpdateCriteria(Criteria const* criteria, uint64 miscValue1
         case CriteriaType::HighestHealReceived:
         case CriteriaType::AnyArtifactPowerRankPurchased:
         case CriteriaType::AzeriteLevelReached:
-        case CriteriaType::ReachRenownLevel:
             SetCriteriaProgress(criteria, miscValue1, referencePlayer, PROGRESS_HIGHEST);
+            break;
+        case CriteriaType::ReachRenownLevel:
+            SetCriteriaProgress(criteria, miscValue2, referencePlayer, PROGRESS_HIGHEST);
             break;
         case CriteriaType::ReachLevel:
             SetCriteriaProgress(criteria, referencePlayer->GetLevel(), referencePlayer);
@@ -2290,9 +2292,8 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             break;
         }
         case ModifierTreeType::PlayerHasCompletedQuest: // 110
-            if (uint32 questBit = sDB2Manager.GetQuestUniqueBitFlag(reqValue))
-                if (!(referencePlayer->m_activePlayerData->QuestCompleted[((questBit - 1) >> 6)] & (UI64LIT(1) << ((questBit - 1) & 63))))
-                    return false;
+            if (!referencePlayer->IsQuestCompletedBitSet(reqValue))
+                return false;
             break;
         case ModifierTreeType::PlayerIsReadyToTurnInQuest: // 111
             if (referencePlayer->GetQuestStatus(reqValue) != QUEST_STATUS_COMPLETE)
@@ -3989,6 +3990,14 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
             if (referencePlayer->GetPositionZ() >= reqValue)
                 return false;
             break;
+        case ModifierTreeType::PlayerDataFlagAccountIsSet: // 378
+            if (!referencePlayer->HasDataFlagAccount(reqValue))
+                return false;
+            break;
+        case ModifierTreeType::PlayerDataFlagCharacterIsSet: // 379
+            if (!referencePlayer->HasDataFlagCharacter(reqValue))
+                return false;
+            break;
         case ModifierTreeType::PlayerIsOnMapWithExpansion: // 380
         {
             MapEntry const* mapEntry = referencePlayer->GetMap()->GetEntry();
@@ -4023,6 +4032,12 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
                 return false;
             break;
         }
+        case ModifierTreeType::PlayerDataElementCharacterBetween: // 390
+            return std::visit([&]<typename T>(T value) { return value >= T(secondaryAsset) && value <= T(tertiaryAsset); },
+                referencePlayer->GetDataElementCharacter(reqValue));
+        case ModifierTreeType::PlayerDataElementAccountBetween: // 391
+            return std::visit([&]<typename T>(T value) { return value >= T(secondaryAsset) && value <= T(tertiaryAsset); },
+                referencePlayer->GetDataElementAccount(reqValue));
         case ModifierTreeType::PlayerHasCompletedQuestOrIsReadyToTurnIn: // 392
         {
             QuestStatus status = referencePlayer->GetQuestStatus(reqValue);
@@ -4030,6 +4045,14 @@ bool CriteriaHandler::ModifierSatisfied(ModifierTreeEntry const* modifier, uint6
                 return false;
             break;
         }
+        case ModifierTreeType::PlayerTitle: // 393
+            if (referencePlayer->m_playerData->PlayerTitle != int32(reqValue))
+                return false;
+            break;
+        case ModifierTreeType::PlayerIsInGuild: // 404
+            if (!referencePlayer->GetGuildId())
+                return false;
+            break;
         default:
             return false;
     }

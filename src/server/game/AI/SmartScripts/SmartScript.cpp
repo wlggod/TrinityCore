@@ -71,9 +71,11 @@ SmartScript::SmartScript()
     mAllEventFlags = 0;
 }
 
-SmartScript::~SmartScript()
-{
-}
+SmartScript::SmartScript(SmartScript const& other) = default;
+SmartScript::SmartScript(SmartScript&& other) noexcept = default;
+SmartScript& SmartScript::operator=(SmartScript const& other) = default;
+SmartScript& SmartScript::operator=(SmartScript&& other) noexcept = default;
+SmartScript::~SmartScript() = default;
 
 bool SmartScript::IsSmart(Creature* c, bool silent) const
 {
@@ -1241,6 +1243,11 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         {
             if (!me)
                 break;
+
+            std::erase_if(targets, [](WorldObject const* target)
+            {
+                return !target->IsUnit();
+            });
 
             if (targets.empty())
                 break;
@@ -2966,7 +2973,7 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
             Creature* target = ref->FindNearestCreatureWithOptions(float(e.target.unitClosest.dist ? e.target.unitClosest.dist : 100), {
                 .CreatureId = e.target.unitClosest.entry,
                 .StringId = !e.target.param_string.empty() ? Optional<std::string_view>(e.target.param_string) : Optional<std::string_view>(),
-                .IsAlive = !e.target.unitClosest.dead
+                .IsAlive = (FindCreatureAliveState)e.target.unitClosest.findCreatureAliveState
             });
 
             if (target)
@@ -3131,7 +3138,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
             break;
         case SMART_EVENT_HEALTH_PCT:
         {
-            if (!me || !me->IsEngaged() || !me->GetMaxHealth())
+            if (!me || me->IsInEvadeMode() || !me->GetMaxHealth())
                 return;
             uint32 perc = (uint32)me->GetHealthPct();
             if (perc > e.event.minMaxRepeat.max || perc < e.event.minMaxRepeat.min)
@@ -3539,7 +3546,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
         }
         case SMART_EVENT_FRIENDLY_HEALTH_PCT:
         {
-            if (!me || !me->IsEngaged())
+            if (!me || me->IsInEvadeMode())
                 return;
 
             Unit* unitTarget = nullptr;
